@@ -70,18 +70,16 @@ func (m API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), m.timeout)
 	defer cancel()
 	go func() {
-		select {
-		case <-ctx.Done():
-			if err := ctx.Err(); err != nil {
-				switch {
-				case errors.Is(err, context.DeadlineExceeded):
-					m.Log.Printf("rest: API timeout in %v path '%v': %v", m.timeout, r.RequestURI, err)
-					m.Error(w, "request took too long to complete", http.StatusTooManyRequests)
-					return
-				case errors.Is(err, context.Canceled):
-					// context was cancelled after successfull operation
-					return
-				}
+		<-ctx.Done()
+		if err := ctx.Err(); err != nil {
+			switch {
+			case errors.Is(err, context.DeadlineExceeded):
+				m.Log.Printf("rest: API timeout in %v path '%v': %v", m.timeout, r.RequestURI, err)
+				m.Error(w, "request took too long to complete", http.StatusTooManyRequests)
+				return
+			case errors.Is(err, context.Canceled):
+				// context was cancelled after successfull operation
+				return
 			}
 		}
 	}()
