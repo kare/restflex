@@ -35,9 +35,6 @@ func (srv *srv) Serve(ctx context.Context, w http.ResponseWriter, r *http.Reques
 }
 
 func Test_default_response_is_HTTP_501(t *testing.T) {
-	type args struct {
-		url string
-	}
 	tests := []struct {
 		name       string
 		method     string
@@ -115,9 +112,6 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 }
 
 func Test_request_with_body_has_JSON_content_type(t *testing.T) {
-	type args struct {
-		url string
-	}
 	tests := []struct {
 		name               string
 		method             string
@@ -216,9 +210,6 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 }
 
 func Test_handlers_timeout(t *testing.T) {
-	type args struct {
-		url string
-	}
 	tests := []struct {
 		name       string
 		handler    func(ctx context.Context, w http.ResponseWriter, r *http.Request) error
