@@ -121,7 +121,6 @@ func (m API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	status := http.StatusInternalServerError
 	m.Error(w, http.StatusText(status), status)
-	return
 }
 
 // ErrorMessage is JSON formatted error message targetted to be consumed by machine.
