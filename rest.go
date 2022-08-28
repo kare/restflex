@@ -78,7 +78,7 @@ func (m API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				m.Error(w, "request took too long to complete", http.StatusTooManyRequests)
 				return
 			case errors.Is(err, context.Canceled):
-				// context was cancelled after successfull operation
+				// context was cancelled after successful operation
 				return
 			}
 		}
