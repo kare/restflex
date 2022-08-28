@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -85,19 +86,31 @@ func (m API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 	if method := r.Method; method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch {
 		correctContentTypeFound := false
+		acceptedContentTypes := []string{
+			"application/json",
+			"application/x-www-form-urlencoded",
+		}
 		contentType := r.Header.Get("Content-Type")
 		for _, v := range strings.Split(contentType, ",") {
 			t, _, err := mime.ParseMediaType(v)
 			if err != nil {
 				continue
 			}
-			const acceptedContentType = "application/json"
-			if strings.HasPrefix(t, acceptedContentType) {
-				correctContentTypeFound = true
+			for _, acceptedContentType := range acceptedContentTypes {
+				if strings.HasPrefix(t, acceptedContentType) {
+					correctContentTypeFound = true
+					break
+				}
 			}
 		}
 		if !correctContentTypeFound {
-			msg := "POST, PUT, and PATCH methods require request content type of application/json"
+			msg := "POST, PUT, and PATCH methods require request content type of "
+			for i, acceptedContentType := range acceptedContentTypes {
+				msg += fmt.Sprintf("%q", acceptedContentType)
+				if i-1 < len(acceptedContentTypes) {
+					msg += " or "
+				}
+			}
 			m.Error(w, msg, http.StatusUnsupportedMediaType)
 			return
 		}

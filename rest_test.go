@@ -11,7 +11,9 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -168,6 +170,24 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 			requestContentType: "application/json",
 			wantStatus:         http.StatusOK,
 		},
+		{
+			name:               "POST with POST Form",
+			method:             http.MethodPost,
+			requestContentType: "application/x-www-form-urlencoded",
+			wantStatus:         http.StatusOK,
+		},
+		{
+			name:               "PUT with POST Form",
+			method:             http.MethodPut,
+			requestContentType: "application/x-www-form-urlencoded",
+			wantStatus:         http.StatusOK,
+		},
+		{
+			name:               "PATCH with POST Form",
+			method:             http.MethodPatch,
+			requestContentType: "application/x-www-form-urlencoded",
+			wantStatus:         http.StatusOK,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -177,13 +197,24 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			data := &request{
-				URL: "https://example.com",
-			}
 			r, w := io.Pipe()
 			go func() {
-				if err := w.CloseWithError(json.NewEncoder(w).Encode(data)); err != nil {
-					t.Errorf("pipe close error: %v", err)
+				if strings.HasPrefix(tt.requestContentType, "application/json") {
+					data := &request{
+						URL: "https://example.com",
+					}
+					if err := w.CloseWithError(json.NewEncoder(w).Encode(data)); err != nil {
+						t.Errorf("pipe close error: %v", err)
+					}
+				} else {
+					data := url.Values{
+						"URL": {"https://example.com"},
+					}
+					reader := strings.NewReader(data.Encode())
+					_, _ = io.Copy(w, reader)
+					if err := w.Close(); err != nil {
+						t.Errorf("pipe close error: %v", err)
+					}
 				}
 			}()
 			defer func(r io.Closer) {
@@ -197,7 +228,45 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 				req.Header.Set("Content-Type", tt.requestContentType)
 			}
 			rec := httptest.NewRecorder()
-			srv := NewAPI(log.Default(), time.Millisecond*10, &srv{})
+			srv := NewAPI(log.Default(), time.Millisecond*10, &srv{
+				handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+					expectedURL := "https://example.com"
+					if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+						data := &struct {
+							URL string `json:"url"`
+						}{}
+						if err := json.NewDecoder(r.Body).Decode(data); err != nil {
+							t.Errorf("error while reading request JSON body: %v", err)
+						}
+						if data.URL != expectedURL {
+							t.Errorf("expecting %q, got %q", expectedURL, data.URL)
+						}
+					} else {
+						if r.Method != http.MethodGet {
+							if err := r.ParseForm(); err != nil {
+								t.Errorf("error while parsing POST Form: %v", err)
+							}
+							if u := r.PostFormValue("URL"); u != expectedURL {
+								t.Errorf("expecting %q, got %q", expectedURL, u)
+							}
+						} else {
+							body, err := io.ReadAll(r.Body)
+							if err != nil {
+								t.Errorf("error while reading POST Form request body: %v", err)
+							}
+							values, err := url.ParseQuery(string(body))
+							if err != nil {
+								t.Errorf("error while parsing POST Form query: %v", err)
+							}
+							if u := values.Get("URL"); u != expectedURL {
+								t.Errorf("expecting %q, got %q\n%v", expectedURL, u, values)
+							}
+						}
+					}
+					w.WriteHeader(http.StatusOK)
+					return nil
+				},
+			})
 			srv.ServeHTTP(rec, req)
 
 			res := rec.Result()
