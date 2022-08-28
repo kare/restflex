@@ -30,7 +30,7 @@ func (srv *srv) Serve(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		return srv.handler(ctx, w, r)
 	}
 	msg := []byte(`{"ok":true}`)
-	w.Write(msg)
+	_, _ = w.Write(msg)
 	return nil
 }
 
@@ -62,7 +62,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 			name:   "default response can be overriden by writing response body",
 			method: http.MethodGet,
 			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-				w.Write([]byte(`{"ok":true}`))
+				_, _ = w.Write([]byte(`{"ok":true}`))
 				return nil
 			},
 			wantStatus: http.StatusOK,
@@ -230,7 +230,7 @@ func Test_handlers_timeout(t *testing.T) {
 		{
 			name: "no timeout",
 			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-				w.Write([]byte(`{"ok":true}`))
+				_, _ = w.Write([]byte(`{"ok":true}`))
 				return nil
 			},
 			wantStatus: http.StatusOK,
