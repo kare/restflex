@@ -130,8 +130,8 @@ type ErrorMessage struct {
 
 // Error is helper function for writing responses containing JSON Object with struct.
 func (m API) Error(w http.ResponseWriter, message string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(statusCode)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	msg := ErrorMessage{
 		Message: message,
 	}
