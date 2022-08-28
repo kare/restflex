@@ -83,7 +83,7 @@ func (m API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
-	if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
+	if method := r.Method; method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch {
 		correctContentTypeFound := false
 		contentType := r.Header.Get("Content-Type")
 		for _, v := range strings.Split(contentType, ",") {
