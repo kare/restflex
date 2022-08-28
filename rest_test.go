@@ -291,7 +291,7 @@ func Test_handlers_timeout(t *testing.T) {
 		{
 			name: "timeouts",
 			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-				time.Sleep(time.Millisecond * 2)
+				time.Sleep(time.Millisecond * 5)
 				return nil
 			},
 			wantStatus: http.StatusTooManyRequests,
