@@ -186,7 +186,11 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 					t.Errorf("pipe close error: %v", err)
 				}
 			}()
-			defer r.Close()
+			defer func(r io.Closer) {
+				if err := r.Close(); err != nil {
+					t.Errorf("error while closing io.Closer: %v", err)
+				}
+			}(r)
 
 			req := httptest.NewRequest(tt.method, "/", r)
 			if tt.requestContentType != "" {
