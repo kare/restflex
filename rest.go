@@ -17,10 +17,6 @@ import (
 	"kkn.fi/infra"
 )
 
-type Shutdownable interface {
-	Shutdown(ctx context.Context) error
-}
-
 type Handler interface {
 	Serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error
 }
