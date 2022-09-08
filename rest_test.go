@@ -1,7 +1,7 @@
 //go:build !integration
 // +build !integration
 
-package rest
+package rest_test
 
 import (
 	"context"
@@ -16,6 +16,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"kkn.fi/rest"
 )
 
 func TestMain(m *testing.M) {
@@ -24,7 +26,7 @@ func TestMain(m *testing.M) {
 }
 
 type srv struct {
-	handler HandlerFunc
+	handler rest.HandlerFunc
 }
 
 func (srv *srv) Serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
@@ -40,7 +42,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 	tests := []struct {
 		name       string
 		method     string
-		handler    HandlerFunc
+		handler    rest.HandlerFunc
 		wantStatus int
 	}{
 		{
@@ -82,8 +84,8 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 			method: http.MethodGet,
 			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 				cause := errors.New("something went wrong")
-				apiError := NewAPIErrorWithMessage(http.StatusBadRequest, "bad input")
-				return NewAPIErrorWithCause(cause, apiError)
+				apiError := rest.NewAPIErrorWithMessage(http.StatusBadRequest, "bad input")
+				return rest.NewAPIErrorWithCause(cause, apiError)
 			},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -95,7 +97,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 
 			req := httptest.NewRequest(tt.method, "/", nil)
 			rec := httptest.NewRecorder()
-			srv := NewAPI(log.Default(), time.Millisecond*10, &srv{
+			srv := rest.NewAPI(log.Default(), time.Millisecond*10, &srv{
 				handler: tt.handler,
 			})
 			srv.ServeHTTP(rec, req)
@@ -105,7 +107,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 			if res.StatusCode != expectedStatusCode {
 				t.Errorf("expected status code %d, but got %d", expectedStatusCode, res.StatusCode)
 			}
-			var response ErrorMessage
+			var response rest.ErrorMessage
 			if err := json.NewDecoder(res.Body).Decode(&response); err != nil && err != io.EOF {
 				t.Errorf("HTTP response JSON decoding error: %v", err)
 			}
@@ -228,7 +230,7 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 				req.Header.Set("Content-Type", tt.requestContentType)
 			}
 			rec := httptest.NewRecorder()
-			srv := NewAPI(log.Default(), time.Millisecond*10, &srv{
+			srv := rest.NewAPI(log.Default(), time.Millisecond*10, &srv{
 				handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 					expectedURL := "https://example.com"
 					if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
@@ -274,7 +276,7 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 			if res.StatusCode != expectedStatusCode {
 				t.Errorf("expected status code %d, but got %d", expectedStatusCode, res.StatusCode)
 			}
-			var response ErrorMessage
+			var response rest.ErrorMessage
 			if err := json.NewDecoder(res.Body).Decode(&response); err != nil && err != io.EOF {
 				t.Errorf("HTTP response JSON decoding error: %v", err)
 			}
@@ -310,7 +312,7 @@ func Test_handlers_timeout(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			api := NewAPI(log.Default(), time.Millisecond*1, &srv{
+			api := rest.NewAPI(log.Default(), time.Millisecond*1, &srv{
 				handler: tt.handler,
 			})
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -321,7 +323,7 @@ func Test_handlers_timeout(t *testing.T) {
 			if res.StatusCode != expectedStatusCode {
 				t.Errorf("expecting status: %v, got %v", expectedStatusCode, res.StatusCode)
 			}
-			var response ErrorMessage
+			var response rest.ErrorMessage
 			if err := json.NewDecoder(res.Body).Decode(&response); err != nil && err != io.EOF {
 				t.Errorf("HTTP response JSON decoding error: %v", err)
 			}
