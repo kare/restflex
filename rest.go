@@ -30,18 +30,17 @@ func (h HandlerFunc) Serve(ctx context.Context, w http.ResponseWriter, r *http.R
 // API holds necessary components for constructing an API.
 type API struct {
 	http.Handler
-	handler Handler
+	APIHandler Handler
 	// Log logs messages
 	Log infra.Logger
 	// timeout for context timeouts
 	timeout time.Duration
 }
 
-func NewAPI(l infra.Logger, timeout time.Duration, handler Handler) *API {
+func NewAPI(l infra.Logger, timeout time.Duration) *API {
 	api := &API{
 		Log:     l,
 		timeout: timeout,
-		handler: handler,
 	}
 	return api
 }
@@ -114,7 +113,7 @@ func (m API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rw := &responseWriter{
 		ResponseWriter: w,
 	}
-	err := m.handler.Serve(ctx, rw, r)
+	err := m.APIHandler.Serve(ctx, rw, r)
 	if err == nil && !rw.isWritten {
 		status := http.StatusNotImplemented
 		m.Error(rw, http.StatusText(status), status)

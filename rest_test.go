@@ -97,9 +97,8 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 
 			req := httptest.NewRequest(tt.method, "/", nil)
 			rec := httptest.NewRecorder()
-			srv := rest.NewAPI(log.Default(), time.Millisecond*10, &srv{
-				handler: tt.handler,
-			})
+			srv := rest.NewAPI(log.Default(), time.Millisecond*10)
+			srv.APIHandler = rest.HandlerFunc(tt.handler)
 			srv.ServeHTTP(rec, req)
 
 			res := rec.Result()
@@ -230,8 +229,9 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 				req.Header.Set("Content-Type", tt.requestContentType)
 			}
 			rec := httptest.NewRecorder()
-			srv := rest.NewAPI(log.Default(), time.Millisecond*10, &srv{
-				handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+			srv := rest.NewAPI(log.Default(), time.Millisecond*10)
+			srv.APIHandler = rest.HandlerFunc(
+				func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 					expectedURL := "https://example.com"
 					if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 						data := &struct {
@@ -267,8 +267,7 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 					}
 					w.WriteHeader(http.StatusOK)
 					return nil
-				},
-			})
+				})
 			srv.ServeHTTP(rec, req)
 
 			res := rec.Result()
@@ -312,12 +311,11 @@ func Test_handlers_timeout(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			api := rest.NewAPI(log.Default(), time.Millisecond*1, &srv{
-				handler: tt.handler,
-			})
+			srv := rest.NewAPI(log.Default(), time.Millisecond*1)
+			srv.APIHandler = rest.HandlerFunc(tt.handler)
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			rec := httptest.NewRecorder()
-			api.ServeHTTP(rec, req)
+			srv.ServeHTTP(rec, req)
 			res := rec.Result()
 			expectedStatusCode := tt.wantStatus
 			if res.StatusCode != expectedStatusCode {
