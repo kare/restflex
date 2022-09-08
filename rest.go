@@ -17,10 +17,12 @@ import (
 	"kkn.fi/infra"
 )
 
+// Handler interface supports use of Context and centralized error handling.
 type Handler interface {
 	Serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error
 }
 
+// HandlerFunc adapts any function to Handler type.
 type HandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request) error
 
 func (h HandlerFunc) Serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
@@ -37,6 +39,7 @@ type API struct {
 	timeout time.Duration
 }
 
+// NewAPI creates a new API instance with struct member APIHandler uninitialized.
 func NewAPI(l infra.Logger, timeout time.Duration) *API {
 	api := &API{
 		Log:     l,
