@@ -62,16 +62,16 @@ func (w *responseWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
-func (m API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), m.timeout)
+func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), a.timeout)
 	defer cancel()
 	go func() {
 		<-ctx.Done()
 		if err := ctx.Err(); err != nil {
 			switch {
 			case errors.Is(err, context.DeadlineExceeded):
-				m.Log.Printf("rest: API timeout in %v path '%v': %v", m.timeout, r.RequestURI, err)
-				m.Error(w, "request took too long to complete", http.StatusTooManyRequests)
+				a.Log.Printf("rest: API timeout in %v path '%v': %v", a.timeout, r.RequestURI, err)
+				a.Error(w, "request took too long to complete", http.StatusTooManyRequests)
 				return
 			case errors.Is(err, context.Canceled):
 				// context was cancelled after successful operation
@@ -106,17 +106,17 @@ func (m API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					msg += " or "
 				}
 			}
-			m.Error(w, msg, http.StatusUnsupportedMediaType)
+			a.Error(w, msg, http.StatusUnsupportedMediaType)
 			return
 		}
 	}
 	rw := &responseWriter{
 		ResponseWriter: w,
 	}
-	err := m.APIHandler.Serve(ctx, rw, r)
+	err := a.APIHandler.Serve(ctx, rw, r)
 	if err == nil && !rw.isWritten {
 		status := http.StatusNotImplemented
-		m.Error(rw, http.StatusText(status), status)
+		a.Error(rw, http.StatusText(status), status)
 		return
 	}
 	if err == nil {
@@ -124,11 +124,11 @@ func (m API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	var apiError APIError
 	if errors.As(err, &apiError) {
-		m.Error(w, apiError.ErrorAPI(), apiError.StatusCode())
+		a.Error(w, apiError.ErrorAPI(), apiError.StatusCode())
 		return
 	}
 	status := http.StatusInternalServerError
-	m.Error(w, http.StatusText(status), status)
+	a.Error(w, http.StatusText(status), status)
 }
 
 // ErrorMessage is JSON formatted error message targetted to be consumed by machine.
@@ -137,14 +137,14 @@ type ErrorMessage struct {
 }
 
 // Error is helper function for writing responses containing JSON Object with struct.
-func (m API) Error(w http.ResponseWriter, message string, statusCode int) {
+func (a API) Error(w http.ResponseWriter, message string, statusCode int) {
 	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	msg := ErrorMessage{
 		Message: message,
 	}
 	if errOnError := EncodeJSON(w, &msg); errOnError != nil {
-		m.Log.Printf("rest: error while writing JSON error response: %v", errOnError)
+		a.Log.Printf("rest: error while writing JSON error response: %v", errOnError)
 		return
 	}
 }
