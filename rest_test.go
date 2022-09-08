@@ -25,19 +25,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-type srv struct {
-	handler rest.HandlerFunc
-}
-
-func (srv *srv) Serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	if srv.handler != nil {
-		return srv.handler(ctx, w, r)
-	}
-	msg := []byte(`{"ok":true}`)
-	_, _ = w.Write(msg)
-	return nil
-}
-
 func Test_default_response_is_HTTP_501(t *testing.T) {
 	tests := []struct {
 		name       string
