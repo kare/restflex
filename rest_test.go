@@ -279,7 +279,7 @@ func Test_handlers_timeout(t *testing.T) {
 		{
 			name: "timeouts",
 			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-				time.Sleep(time.Millisecond * 5)
+				time.Sleep(time.Millisecond * 10)
 				return nil
 			},
 			wantStatus: http.StatusTooManyRequests,
@@ -298,7 +298,7 @@ func Test_handlers_timeout(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			srv := rest.NewAPI(log.Default(), time.Millisecond*1)
+			srv := rest.NewAPI(log.Default(), time.Millisecond*5)
 			srv.APIHandler = rest.HandlerFunc(tt.handler)
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			rec := httptest.NewRecorder()
