@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"kkn.fi/rest"
 )
@@ -40,7 +39,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 			wantStatus: http.StatusNotImplemented,
 		},
 		{
-			name:   "default response can be overriden by writing response status header",
+			name:   "default response can be overridden by writing response status header",
 			method: http.MethodGet,
 			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 				w.WriteHeader(http.StatusOK)
@@ -49,7 +48,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:   "default response can be overriden by writing response body",
+			name:   "default response can be overridden by writing response body",
 			method: http.MethodGet,
 			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 				_, _ = w.Write([]byte(`{"ok":true}`))
@@ -83,8 +82,8 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 
 			req := httptest.NewRequest(tt.method, "/", nil)
 			rec := httptest.NewRecorder()
-			srv := rest.NewAPI(log.Default(), time.Millisecond*10)
-			srv.APIHandler = rest.HandlerFunc(tt.handler)
+			srv := rest.NewAPI(log.Default())
+			srv.APIHandler = tt.handler
 			srv.ServeHTTP(rec, req)
 
 			res := rec.Result()
@@ -215,7 +214,7 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 				req.Header.Set("Content-Type", tt.requestContentType)
 			}
 			rec := httptest.NewRecorder()
-			srv := rest.NewAPI(log.Default(), time.Millisecond*10)
+			srv := rest.NewAPI(log.Default())
 			srv.APIHandler = rest.HandlerFunc(
 				func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 					expectedURL := "https://example.com"
@@ -260,52 +259,6 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 			expectedStatusCode := tt.wantStatus
 			if res.StatusCode != expectedStatusCode {
 				t.Errorf("expected status code %d, but got %d", expectedStatusCode, res.StatusCode)
-			}
-			var response rest.ErrorMessage
-			if err := json.NewDecoder(res.Body).Decode(&response); err != nil && err != io.EOF {
-				t.Errorf("HTTP response JSON decoding error: %v", err)
-			}
-		})
-	}
-}
-
-func Test_handlers_timeout(t *testing.T) {
-	tests := []struct {
-		name       string
-		handler    func(ctx context.Context, w http.ResponseWriter, r *http.Request) error
-		wantStatus int
-	}{
-		{
-			name: "timeouts",
-			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-				time.Sleep(time.Millisecond * 10)
-				return nil
-			},
-			wantStatus: http.StatusTooManyRequests,
-		},
-		{
-			name: "no timeout",
-			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-				_, _ = w.Write([]byte(`{"ok":true}`))
-				return nil
-			},
-			wantStatus: http.StatusOK,
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			srv := rest.NewAPI(log.Default(), time.Millisecond*5)
-			srv.APIHandler = rest.HandlerFunc(tt.handler)
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			rec := httptest.NewRecorder()
-			srv.ServeHTTP(rec, req)
-			res := rec.Result()
-			expectedStatusCode := tt.wantStatus
-			if res.StatusCode != expectedStatusCode {
-				t.Errorf("expecting status: %v, got %v", expectedStatusCode, res.StatusCode)
 			}
 			var response rest.ErrorMessage
 			if err := json.NewDecoder(res.Body).Decode(&response); err != nil && err != io.EOF {

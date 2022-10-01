@@ -12,7 +12,6 @@ import (
 	"mime"
 	"net/http"
 	"strings"
-	"time"
 
 	"kkn.fi/infra"
 )
@@ -35,15 +34,12 @@ type API struct {
 	APIHandler Handler
 	// Log logs messages
 	Log infra.Logger
-	// timeout for context timeouts
-	timeout time.Duration
 }
 
 // NewAPI creates a new API instance with struct member APIHandler uninitialized.
-func NewAPI(l infra.Logger, timeout time.Duration) *API {
+func NewAPI(l infra.Logger) *API {
 	api := &API{
-		Log:     l,
-		timeout: timeout,
+		Log: l,
 	}
 	return api
 }
@@ -66,22 +62,6 @@ func (w *responseWriter) Write(b []byte) (int, error) {
 }
 
 func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), a.timeout)
-	defer cancel()
-	go func() {
-		<-ctx.Done()
-		if err := ctx.Err(); err != nil {
-			switch {
-			case errors.Is(err, context.DeadlineExceeded):
-				a.Log.Printf("rest: API timeout in %v path '%v': %v", a.timeout, r.RequestURI, err)
-				a.Error(w, "request took too long to complete", http.StatusTooManyRequests)
-				return
-			case errors.Is(err, context.Canceled):
-				// context was cancelled after successful operation
-				return
-			}
-		}
-	}()
 	if method := r.Method; method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch {
 		correctContentTypeFound := false
 		acceptedContentTypes := []string{
@@ -116,6 +96,7 @@ func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rw := &responseWriter{
 		ResponseWriter: w,
 	}
+	ctx := r.Context()
 	err := a.APIHandler.Serve(ctx, rw, r)
 	if err == nil && !rw.isWritten {
 		status := http.StatusNotImplemented
@@ -127,11 +108,11 @@ func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	var apiError APIError
 	if errors.As(err, &apiError) {
-		a.Error(w, apiError.ErrorAPI(), apiError.StatusCode())
+		a.Error(rw, apiError.ErrorAPI(), apiError.StatusCode())
 		return
 	}
 	status := http.StatusInternalServerError
-	a.Error(w, http.StatusText(status), status)
+	a.Error(rw, http.StatusText(status), status)
 }
 
 // ErrorMessage is JSON formatted error message targetted to be consumed by machine.
@@ -162,7 +143,7 @@ func EncodeJSON(w http.ResponseWriter, msg any) error {
 }
 
 // DecodeJSON reads a JSON message from HTTP request.
-func DecodeJSON(w http.ResponseWriter, body io.Reader, o any) error {
+func DecodeJSON(body io.Reader, o any) error {
 	decoder := json.NewDecoder(body)
 	if err := decoder.Decode(o); err != nil {
 		return NewAPIErrorWithCause(err, ErrInvalidRequestBody)
