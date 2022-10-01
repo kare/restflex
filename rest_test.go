@@ -15,11 +15,14 @@ import (
 	"strings"
 	"testing"
 
+	"kkn.fi/infra"
 	"kkn.fi/rest"
 )
 
 func TestMain(m *testing.M) {
-	log.SetOutput(io.Discard)
+	if infra.IsCI() {
+		log.SetOutput(io.Discard)
+	}
 	os.Exit(m.Run())
 }
 
