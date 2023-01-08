@@ -1,96 +1,77 @@
 package rest
 
-import (
-	"net/http"
-)
+import "net/http"
 
 var (
-	ErrAuth = NewAPIErrorWithMessage(http.StatusUnauthorized, "authorization required")
+	ErrAuth = NewAPIError(http.StatusUnauthorized, nil, "authorization required")
 
-	ErrNotFound = NewAPIErrorWithMessage(http.StatusNotFound, "item not found")
+	ErrNotFound = NewAPIError(http.StatusNotFound, nil, "item not found")
 
-	ErrInvalidRequestBody = NewAPIErrorWithMessage(http.StatusBadRequest, "expecting well formed JSON request body")
+	ErrInvalidRequestBody = NewAPIError(http.StatusBadRequest, nil, "expecting well formed request body")
 
-	ErrInternal = NewAPIErrorWithMessage(http.StatusInternalServerError, "internal server error")
+	ErrBadRequest = NewBadRequest(http.StatusText(http.StatusBadRequest))
+
+	ErrInternal = NewAPIError(http.StatusInternalServerError, nil, "internal server error")
 )
 
 type APIError interface {
+	error
 	// StatusCode returns HTTP status code.
 	StatusCode() int
-	// Error returns the underlying error message.
-	Error() string
-	// ErrorAPI returns an API compatible error message.
-	ErrorAPI() string
+	// Unwrap returns the underlying cause for this APIError if any.
+	Unwrap() error
+	// Errors returns an API compatible list of error messages.
+	Errors() []string
 }
 
-type basicAPIError struct {
+type apiError struct {
 	statusCode int
-	message    string
+	cause      error
+	messages   []string
 }
 
-func NewAPIError(statusCode int) APIError {
-	return &basicAPIError{
+func NewAPIError(statusCode int, cause error, messages ...string) APIError {
+	return &apiError{
 		statusCode: statusCode,
-		message:    http.StatusText(statusCode),
+		cause:      cause,
+		messages:   messages,
 	}
 }
 
-func NewAPIErrorWithMessage(statusCode int, message string) APIError {
-	return &basicAPIError{
-		statusCode: statusCode,
-		message:    message,
-	}
+// NewValidationError is called when a data validation error occurs.
+func NewValidationError(messages ...string) APIError {
+	return NewAPIError(http.StatusUnprocessableEntity, nil, messages...)
 }
 
-func (e *basicAPIError) StatusCode() int {
+func NewBadRequest(messages ...string) APIError {
+	return NewAPIError(http.StatusBadRequest, nil, messages...)
+}
+
+func (e *apiError) Error() string {
+	if e.cause != nil {
+		return e.cause.Error()
+	}
+	if len(e.messages) > 0 {
+		return e.messages[0]
+	}
+	return "unknown API error"
+}
+
+func (e *apiError) StatusCode() int {
 	return e.statusCode
 }
 
-func (e *basicAPIError) ErrorAPI() string {
-	return e.message
+func (e *apiError) Unwrap() error {
+	return e.cause
 }
 
-func (e *basicAPIError) Error() string {
-	return e.message
+func (e *apiError) Errors() []string {
+	return e.messages
 }
 
-func (e *basicAPIError) Is(target error) bool {
+func (e *apiError) Is(target error) bool {
 	if _, ok := target.(APIError); ok {
 		return true
 	}
 	return false
-}
-
-// NewValidationError is called when a data validation error occurs.
-func NewValidationError(message string) APIError {
-	return &basicAPIError{
-		statusCode: http.StatusUnprocessableEntity,
-		message:    message,
-	}
-}
-
-func NewValidationErrorWithCause(cause error, apiError APIError) APIError {
-	return &APIErrorWithCause{
-		error:    cause,
-		APIError: apiError,
-	}
-}
-
-type APIErrorWithCause struct {
-	// error is the error that causes this error in the first place.
-	error
-	APIError
-}
-
-func NewAPIErrorWithCause(cause error, apiError APIError) APIError {
-	return &APIErrorWithCause{
-		error:    cause,
-		APIError: apiError,
-	}
-}
-func (e *APIErrorWithCause) Error() string {
-	return e.error.Error()
-}
-func (e *APIErrorWithCause) Is(err error) bool {
-	return e.APIError == err
 }

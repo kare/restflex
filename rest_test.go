@@ -28,10 +28,11 @@ func TestMain(m *testing.M) {
 
 func Test_default_response_is_HTTP_501(t *testing.T) {
 	tests := []struct {
-		name       string
-		method     string
-		handler    rest.HandlerFunc
-		wantStatus int
+		name        string
+		method      string
+		handler     rest.HandlerFunc
+		wantStatus  int
+		expectedErr string
 	}{
 		{
 			name:   "default response is 501 not implemented",
@@ -71,11 +72,19 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 			name:   "on API error no default response",
 			method: http.MethodGet,
 			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-				cause := errors.New("something went wrong")
-				apiError := rest.NewAPIErrorWithMessage(http.StatusBadRequest, "bad input")
-				return rest.NewAPIErrorWithCause(cause, apiError)
+				return rest.NewBadRequest("something went wrong")
 			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus:  http.StatusBadRequest,
+			expectedErr: "something went wrong",
+		},
+		{
+			name:   "on API error with cause",
+			method: http.MethodGet,
+			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+				return rest.NewAPIError(http.StatusInternalServerError, errors.New("test server error"), "custom error message")
+			},
+			wantStatus:  http.StatusInternalServerError,
+			expectedErr: "custom error message",
 		},
 	}
 	for _, tt := range tests {
@@ -98,7 +107,34 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 			if err := json.NewDecoder(res.Body).Decode(&response); err != nil && err != io.EOF {
 				t.Errorf("HTTP response JSON decoding error: %v", err)
 			}
+			if tt.expectedErr != "" {
+				rerr := response.Errors[0]
+				if rerr != tt.expectedErr {
+					t.Errorf("expected error message '%v', but got '%v'", tt.expectedErr, rerr)
+				}
+			}
 		})
+	}
+}
+
+func Test_default_response_is_501_not_implemented(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	srv := rest.NewAPI(log.Default())
+	srv.APIHandler = rest.HandlerFunc(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+		return nil
+	})
+	srv.ServeHTTP(rec, req)
+
+	res := rec.Result()
+	expectedStatusCode := http.StatusNotImplemented
+	if res.StatusCode != expectedStatusCode {
+		t.Errorf("expected status code %d, but got %d", expectedStatusCode, res.StatusCode)
+	}
+	var response rest.ErrorMessage
+	if err := json.NewDecoder(res.Body).Decode(&response); err != nil && err != io.EOF {
+		t.Errorf("HTTP response JSON decoding error: %v", err)
 	}
 }
 

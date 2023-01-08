@@ -49,10 +49,12 @@ func NewAPI(l infra.Logger) *API {
 type responseWriter struct {
 	http.ResponseWriter
 	isWritten bool
+	status    int
 }
 
 func (w *responseWriter) WriteHeader(status int) {
 	w.isWritten = true
+	w.status = status
 	w.ResponseWriter.WriteHeader(status)
 }
 
@@ -89,46 +91,65 @@ func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					msg += " or "
 				}
 			}
-			a.Error(w, msg, http.StatusUnsupportedMediaType)
+			a.Error(w, http.StatusUnsupportedMediaType, msg)
 			return
 		}
 	}
 	rw := &responseWriter{
 		ResponseWriter: w,
+		status:         http.StatusOK,
 	}
 	ctx := r.Context()
 	err := a.APIHandler.Serve(ctx, rw, r)
 	if err == nil && !rw.isWritten {
 		status := http.StatusNotImplemented
-		a.Error(rw, http.StatusText(status), status)
+		a.Error(rw, status, http.StatusText(status))
 		return
+	}
+	var apiError APIError
+	isAPIErr := errors.As(err, &apiError)
+	fmt.Println(isAPIErr, rw.status)
+	switch responseStatus := rw.status; {
+	case responseStatus > 399 && responseStatus < 500:
+		a.Log.Printf("client error: %v", responseStatus)
+	case responseStatus == 500 || responseStatus > 501:
+		a.Log.Printf("server error: %v: %v", responseStatus, err)
+		if isAPIErr {
+			a.Log.Printf("API ERROR: %v", apiError)
+		}
 	}
 	if err == nil {
 		return
 	}
-	var apiError APIError
-	if errors.As(err, &apiError) {
-		a.Error(rw, apiError.ErrorAPI(), apiError.StatusCode())
+	if isAPIErr {
+		a.Error(rw, apiError.StatusCode(), apiError.Errors()...)
 		return
 	}
 	status := http.StatusInternalServerError
-	a.Error(rw, http.StatusText(status), status)
+	a.Error(rw, status, http.StatusText(status))
 }
 
 // ErrorMessage is JSON formatted error message targetted to be consumed by machine.
 type ErrorMessage struct {
-	Message string `json:"message"`
+	Errors []string `json:"errors"`
 }
 
-// Error is helper function for writing responses containing JSON Object with struct.
-func (a API) Error(w http.ResponseWriter, message string, statusCode int) {
+func NewErrorMessage(errors ...string) *ErrorMessage {
+	return &ErrorMessage{
+		Errors: errors,
+	}
+}
+
+// Error writes a JSON formatted error response.
+func (a API) Error(w http.ResponseWriter, statusCode int, messages ...string) {
+	type Response struct {
+		Errors []string `json:"errors"`
+	}
 	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	msg := ErrorMessage{
-		Message: message,
-	}
+	msg := NewErrorMessage(messages...)
 	if errOnError := EncodeJSON(w, &msg); errOnError != nil {
-		a.Log.Printf("rest: error while writing JSON error response: %v", errOnError)
+		a.Log.Printf("rest: error while writing error response: %v", errOnError)
 		return
 	}
 }
@@ -136,8 +157,8 @@ func (a API) Error(w http.ResponseWriter, message string, statusCode int) {
 // EncodeJSON encodes a JSON message to HTTP response.
 func EncodeJSON(w http.ResponseWriter, msg any) error {
 	encoder := json.NewEncoder(w)
-	if err := encoder.Encode(msg); err != nil {
-		return NewAPIErrorWithCause(err, ErrInternal)
+	if cause := encoder.Encode(msg); cause != nil {
+		return NewAPIError(http.StatusInternalServerError, cause)
 	}
 	return nil
 }
@@ -145,8 +166,8 @@ func EncodeJSON(w http.ResponseWriter, msg any) error {
 // DecodeJSON reads a JSON message from HTTP request.
 func DecodeJSON(body io.Reader, o any) error {
 	decoder := json.NewDecoder(body)
-	if err := decoder.Decode(o); err != nil {
-		return NewAPIErrorWithCause(err, ErrInvalidRequestBody)
+	if cause := decoder.Decode(o); cause != nil {
+		return NewAPIError(http.StatusBadRequest, cause).(error)
 	}
 	return nil
 }
