@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"kkn.fi/httpx"
 	"kkn.fi/infra"
 	"kkn.fi/rest"
 )
@@ -30,7 +31,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 	tests := []struct {
 		name        string
 		method      string
-		handler     rest.HandlerFunc
+		handler     httpx.HandlerWithContextFunc
 		wantStatus  int
 		expectedErr string
 	}{
@@ -94,8 +95,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 
 			req := httptest.NewRequest(tt.method, "/", nil)
 			rec := httptest.NewRecorder()
-			srv := rest.NewAPI(log.Default())
-			srv.APIHandler = tt.handler
+			srv := rest.NewHandlerWithContext(log.Default(), tt.handler)
 			srv.ServeHTTP(rec, req)
 
 			res := rec.Result()
@@ -108,6 +108,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 				t.Errorf("HTTP response JSON decoding error: %v", err)
 			}
 			if tt.expectedErr != "" {
+				t.Logf("errors: %v", response.Errors)
 				rerr := response.Errors[0]
 				if rerr != tt.expectedErr {
 					t.Errorf("expected error message '%v', but got '%v'", tt.expectedErr, rerr)
@@ -121,10 +122,9 @@ func Test_default_response_is_501_not_implemented(t *testing.T) {
 	t.Parallel()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
-	srv := rest.NewAPI(log.Default())
-	srv.APIHandler = rest.HandlerFunc(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	srv := rest.NewHandlerWithContext(log.Default(), httpx.HandlerWithContextFunc(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		return nil
-	})
+	}))
 	srv.ServeHTTP(rec, req)
 
 	res := rec.Result()
@@ -232,9 +232,8 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 						t.Errorf("pipe close error: %v", err)
 					}
 				} else {
-					data := url.Values{
-						"URL": {"https://example.com"},
-					}
+					data := url.Values{}
+					data.Set("URL", "https://example.com")
 					reader := strings.NewReader(data.Encode())
 					_, _ = io.Copy(w, reader)
 					if err := w.Close(); err != nil {
@@ -253,8 +252,7 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 				req.Header.Set("Content-Type", tt.requestContentType)
 			}
 			rec := httptest.NewRecorder()
-			srv := rest.NewAPI(log.Default())
-			srv.APIHandler = rest.HandlerFunc(
+			srv := rest.NewHandlerWithContext(log.Default(), httpx.HandlerWithContextFunc(
 				func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 					expectedURL := "https://example.com"
 					if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
@@ -291,7 +289,7 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 					}
 					w.WriteHeader(http.StatusOK)
 					return nil
-				})
+				}))
 			srv.ServeHTTP(rec, req)
 
 			res := rec.Result()

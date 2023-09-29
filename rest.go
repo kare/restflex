@@ -1,10 +1,8 @@
 package rest
 
-// TODO: rename package to framework name
-// TODO: name this framework first!
+// TODO: rename package from rest to restflex
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,57 +11,26 @@ import (
 	"net/http"
 	"strings"
 
+	"kkn.fi/httpx"
 	"kkn.fi/infra"
 )
 
-// Handler interface supports use of Context and centralized error handling.
-type Handler interface {
-	Serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error
-}
-
-// HandlerFunc adapts any function to Handler type.
-type HandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request) error
-
-func (h HandlerFunc) Serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	return h(ctx, w, r)
-}
-
-// API holds necessary components for constructing an API.
-type API struct {
-	http.Handler
-	APIHandler Handler
+// handler holds necessary components for constructing a REST API HTTP request handler.
+type handler struct {
+	httpx.HandlerWithContext
 	// Log logs messages
 	Log infra.Logger
 }
 
-// NewAPI creates a new API instance with struct member APIHandler uninitialized.
-func NewAPI(l infra.Logger) *API {
-	api := &API{
-		Log: l,
+func NewHandlerWithContext(l infra.Logger, h httpx.HandlerWithContext) http.Handler {
+	api := &handler{
+		Log:                l,
+		HandlerWithContext: h,
 	}
 	return api
 }
 
-// responseWriter stores whether response has been already written in the
-// isWritten variable.
-type responseWriter struct {
-	http.ResponseWriter
-	isWritten bool
-	status    int
-}
-
-func (w *responseWriter) WriteHeader(status int) {
-	w.isWritten = true
-	w.status = status
-	w.ResponseWriter.WriteHeader(status)
-}
-
-func (w *responseWriter) Write(b []byte) (int, error) {
-	w.isWritten = true
-	return w.ResponseWriter.Write(b)
-}
-
-func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if method := r.Method; method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch {
 		correctContentTypeFound := false
 		acceptedContentTypes := []string{
@@ -91,7 +58,7 @@ func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					msg += " or "
 				}
 			}
-			a.Error(w, http.StatusUnsupportedMediaType, msg)
+			h.Error(w, http.StatusUnsupportedMediaType, msg)
 			return
 		}
 	}
@@ -100,33 +67,34 @@ func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		status:         http.StatusOK,
 	}
 	ctx := r.Context()
-	err := a.APIHandler.Serve(ctx, rw, r)
+	err := h.ServeHTTPWithContext(ctx, rw, r)
+	h.Log.Printf("error: %v is written: %v", err, rw.isWritten)
 	if err == nil && !rw.isWritten {
 		status := http.StatusNotImplemented
-		a.Error(rw, status, http.StatusText(status))
+		h.Error(rw, status, http.StatusText(status))
 		return
 	}
 	var apiError APIError
 	isAPIErr := errors.As(err, &apiError)
-	fmt.Println(isAPIErr, rw.status)
+	h.Log.Printf("is API error: %v HTTP status: %d", isAPIErr, rw.status)
 	switch responseStatus := rw.status; {
 	case responseStatus > 399 && responseStatus < 500:
-		a.Log.Printf("client error: %v", responseStatus)
+		h.Log.Printf("client error: %v", responseStatus)
 	case responseStatus == 500 || responseStatus > 501:
-		a.Log.Printf("server error: %v: %v", responseStatus, err)
+		h.Log.Printf("server error: %v: %v", responseStatus, err)
 		if isAPIErr {
-			a.Log.Printf("API ERROR: %v", apiError)
+			h.Log.Printf("server error is APIError: %v", apiError)
 		}
 	}
 	if err == nil {
 		return
 	}
 	if isAPIErr {
-		a.Error(rw, apiError.StatusCode(), apiError.Errors()...)
+		h.Error(rw, apiError.StatusCode(), apiError.Errors()...)
 		return
 	}
 	status := http.StatusInternalServerError
-	a.Error(rw, status, http.StatusText(status))
+	h.Error(rw, status, http.StatusText(status))
 }
 
 // ErrorMessage is JSON formatted error message targetted to be consumed by machine.
@@ -141,15 +109,12 @@ func NewErrorMessage(errors ...string) *ErrorMessage {
 }
 
 // Error writes a JSON formatted error response.
-func (a API) Error(w http.ResponseWriter, statusCode int, messages ...string) {
-	type Response struct {
-		Errors []string `json:"errors"`
-	}
+func (h handler) Error(w http.ResponseWriter, statusCode int, messages ...string) {
 	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	msg := NewErrorMessage(messages...)
 	if errOnError := EncodeJSON(w, &msg); errOnError != nil {
-		a.Log.Printf("rest: error while writing error response: %v", errOnError)
+		h.Log.Printf("rest: error while writing error response: %v", errOnError)
 		return
 	}
 }
@@ -167,7 +132,7 @@ func EncodeJSON(w http.ResponseWriter, msg any) error {
 func DecodeJSON(body io.Reader, o any) error {
 	decoder := json.NewDecoder(body)
 	if cause := decoder.Decode(o); cause != nil {
-		return NewAPIError(http.StatusBadRequest, cause).(error)
+		return NewAPIError(http.StatusBadRequest, cause)
 	}
 	return nil
 }

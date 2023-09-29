@@ -38,9 +38,28 @@ func NewAPIError(statusCode int, cause error, messages ...string) APIError {
 	}
 }
 
+type ValidationError interface {
+	ValidationError() string
+}
+
+type validationError struct {
+	APIError
+}
+
 // NewValidationError is called when a data validation error occurs.
-func NewValidationError(messages ...string) APIError {
-	return NewAPIError(http.StatusUnprocessableEntity, nil, messages...)
+func NewValidationError(statusCode int, cause error, messages ...string) error {
+	apiErr := NewAPIError(statusCode, cause, messages...)
+	return &validationError{
+		APIError: apiErr,
+	}
+}
+
+func (e *validationError) Error() string {
+	return e.APIError.Error()
+}
+
+func (e *validationError) ValidationError() string {
+	return e.Error()
 }
 
 func NewBadRequest(messages ...string) APIError {
