@@ -1,4 +1,4 @@
-module kkn.fi/rest
+module kkn.fi/restflex
 
 go 1.19
 

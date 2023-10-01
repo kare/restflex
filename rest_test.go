@@ -1,6 +1,6 @@
 //go:build !integration
 
-package rest_test
+package restflex_test
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 
 	"kkn.fi/httpx"
 	"kkn.fi/infra"
-	"kkn.fi/rest"
+	"kkn.fi/restflex"
 )
 
 func TestMain(m *testing.M) {
@@ -73,7 +73,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 			name:   "on API error no default response",
 			method: http.MethodGet,
 			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-				return rest.NewBadRequest("something went wrong")
+				return restflex.NewBadRequest("something went wrong")
 			},
 			wantStatus:  http.StatusBadRequest,
 			expectedErr: "something went wrong",
@@ -82,7 +82,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 			name:   "on API error with cause",
 			method: http.MethodGet,
 			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-				return rest.NewAPIError(http.StatusInternalServerError, errors.New("test server error"), "custom error message")
+				return restflex.NewAPIError(http.StatusInternalServerError, errors.New("test server error"), "custom error message")
 			},
 			wantStatus:  http.StatusInternalServerError,
 			expectedErr: "custom error message",
@@ -95,7 +95,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 
 			req := httptest.NewRequest(tt.method, "/", nil)
 			rec := httptest.NewRecorder()
-			srv := rest.NewHandlerWithContext(log.Default(), tt.handler)
+			srv := restflex.NewHandlerWithContext(log.Default(), tt.handler)
 			srv.ServeHTTP(rec, req)
 
 			res := rec.Result()
@@ -103,7 +103,7 @@ func Test_default_response_is_HTTP_501(t *testing.T) {
 			if res.StatusCode != expectedStatusCode {
 				t.Errorf("expected status code %d, but got %d", expectedStatusCode, res.StatusCode)
 			}
-			var response rest.ErrorMessage
+			var response restflex.ErrorMessage
 			if err := json.NewDecoder(res.Body).Decode(&response); err != nil && err != io.EOF {
 				t.Errorf("HTTP response JSON decoding error: %v", err)
 			}
@@ -122,7 +122,7 @@ func Test_default_response_is_501_not_implemented(t *testing.T) {
 	t.Parallel()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
-	srv := rest.NewHandlerWithContext(log.Default(), httpx.HandlerWithContextFunc(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	srv := restflex.NewHandlerWithContext(log.Default(), httpx.HandlerWithContextFunc(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}))
 	srv.ServeHTTP(rec, req)
@@ -132,7 +132,7 @@ func Test_default_response_is_501_not_implemented(t *testing.T) {
 	if res.StatusCode != expectedStatusCode {
 		t.Errorf("expected status code %d, but got %d", expectedStatusCode, res.StatusCode)
 	}
-	var response rest.ErrorMessage
+	var response restflex.ErrorMessage
 	if err := json.NewDecoder(res.Body).Decode(&response); err != nil && err != io.EOF {
 		t.Errorf("HTTP response JSON decoding error: %v", err)
 	}
@@ -252,7 +252,7 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 				req.Header.Set("Content-Type", tt.requestContentType)
 			}
 			rec := httptest.NewRecorder()
-			srv := rest.NewHandlerWithContext(log.Default(), httpx.HandlerWithContextFunc(
+			srv := restflex.NewHandlerWithContext(log.Default(), httpx.HandlerWithContextFunc(
 				func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 					expectedURL := "https://example.com"
 					if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
@@ -297,7 +297,7 @@ func Test_request_with_body_has_JSON_content_type(t *testing.T) {
 			if res.StatusCode != expectedStatusCode {
 				t.Errorf("expected status code %d, but got %d", expectedStatusCode, res.StatusCode)
 			}
-			var response rest.ErrorMessage
+			var response restflex.ErrorMessage
 			if err := json.NewDecoder(res.Body).Decode(&response); err != nil && err != io.EOF {
 				t.Errorf("HTTP response JSON decoding error: %v", err)
 			}

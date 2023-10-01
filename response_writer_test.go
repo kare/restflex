@@ -1,4 +1,4 @@
-package rest
+package restflex
 
 import (
 	"net/http"

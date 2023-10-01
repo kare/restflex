@@ -1,6 +1,4 @@
-package rest
-
-// TODO: rename package from rest to restflex
+package restflex
 
 import (
 	"encoding/json"
@@ -114,7 +112,7 @@ func (h handler) Error(w http.ResponseWriter, statusCode int, messages ...string
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	msg := NewErrorMessage(messages...)
 	if errOnError := EncodeJSON(w, &msg); errOnError != nil {
-		h.Log.Printf("rest: error while writing error response: %v", errOnError)
+		h.Log.Printf("restflex: error while writing error response: %v", errOnError)
 		return
 	}
 }
