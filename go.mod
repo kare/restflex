@@ -2,11 +2,13 @@ module kkn.fi/rest
 
 go 1.19
 
-require kkn.fi/infra v0.0.7
+require (
+	kkn.fi/httpx v0.0.10
+	kkn.fi/infra v0.0.9
+)
 
 require (
-	golang.org/x/crypto v0.5.0 // indirect
-	golang.org/x/net v0.5.0 // indirect
-	golang.org/x/text v0.6.0 // indirect
-	kkn.fi/httpx v0.0.10 // indirect
+	golang.org/x/crypto v0.13.0 // indirect
+	golang.org/x/net v0.15.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 )
