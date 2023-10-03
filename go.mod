@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	kkn.fi/httpx v0.0.10
-	kkn.fi/infra v0.0.9
+	kkn.fi/infra v0.0.10
 )
 
 require (
