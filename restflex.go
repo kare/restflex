@@ -74,14 +74,12 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	var apiError APIError
 	isAPIErr := errors.As(err, &apiError)
-	h.Log.Printf("is API error: %v HTTP status: %d", isAPIErr, rw.status)
 	switch responseStatus := rw.status; {
 	case responseStatus > 399 && responseStatus < 500:
 		h.Log.Printf("client error: %v", responseStatus)
 	case responseStatus == 500 || responseStatus > 501:
-		h.Log.Printf("server error: %v: %v", responseStatus, err)
-		if isAPIErr {
-			h.Log.Printf("server error is APIError: %v", apiError)
+		if !isAPIErr {
+			h.Log.Printf("server error: %v: %v", responseStatus, err)
 		}
 	}
 	if err == nil {
