@@ -3,7 +3,7 @@ module kkn.fi/restflex
 go 1.20
 
 require (
-	kkn.fi/httpx v0.0.11
+	kkn.fi/httpx v0.1.0
 	kkn.fi/infra v0.9.0
 )
 
