@@ -1,6 +1,6 @@
 module kkn.fi/restflex
 
-go 1.20
+go 1.23
 
 require (
 	kkn.fi/httpx v0.1.0
