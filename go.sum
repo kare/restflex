@@ -1,10 +1,10 @@
-golang.org/x/crypto v0.40.0 h1:r4x+VvoG5Fm+eJcxMaY8CQM7Lb0l1lsmjGBQ6s8BfKM=
-golang.org/x/crypto v0.40.0/go.mod h1:Qr1vMER5WyS2dfPHAlsOj01wgLbsyWtFn/aY+5+ZdxY=
+golang.org/x/crypto v0.41.0 h1:WKYxWedPGCTVVl5+WHSSrOBT0O8lx32+zxmHxijgXp4=
+golang.org/x/crypto v0.41.0/go.mod h1:pO5AFd7FA68rFak7rOAGVuygIISepHftHnr8dr6+sUc=
 golang.org/x/net v0.42.0 h1:jzkYrhi3YQWD6MLBJcsklgQsoAcw89EcZbJw8Z614hs=
 golang.org/x/net v0.42.0/go.mod h1:FF1RA5d3u7nAYA4z2TkclSCKh68eSXtiFwcWQpPXdt8=
-golang.org/x/text v0.27.0 h1:4fGWRpyh641NLlecmyl4LOe6yDdfaYNrGb2zdfo4JV4=
-golang.org/x/text v0.27.0/go.mod h1:1D28KMCvyooCX9hBiosv5Tz/+YLxj0j7XhWjpSUF7CU=
+golang.org/x/text v0.28.0 h1:rhazDwis8INMIwQ4tpjLDzUhx6RlXqZNPEM0huQojng=
+golang.org/x/text v0.28.0/go.mod h1:U8nCwOR8jO/marOQ0QbDiOngZVEBB7MAiitBuMjXiNU=
 kkn.fi/httpx v0.2.0 h1:skxGzzhEpczYlCBf67Q+1gVk5YuD+a+SFIzYysmCJUs=
 kkn.fi/httpx v0.2.0/go.mod h1:19WvESHEr6zqDur7XpPbrRrRYSS3JoRgIhQ4n+PQkl8=
-kkn.fi/infra v0.13.5 h1:pJTzmxp3MYdbnaGOX0zugMmxCR3efGZtMxp57ubQ638=
-kkn.fi/infra v0.13.5/go.mod h1:ZNIFoLStv6cYEkxpCNpCRlTqo2fXK1sv6QPy1hWs1lw=
+kkn.fi/infra v0.13.6 h1:LyAWInfJevu5+gWtFpKBFWYgnCcIJ/zX2t0cYt9Vm3E=
+kkn.fi/infra v0.13.6/go.mod h1:v3HiW6sc0nk7M8TcuHyX1eXabsX8k9RsTzDuc8axX2o=
